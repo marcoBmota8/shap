@@ -9,6 +9,7 @@
 - [Pull Requests (PRs)](#pull-requests-prs)
   - [Etiquette for creating PRs](#etiquette-for-creating-prs)
   - [Checklist for publishing PRs](#checklist-for-publishing-prs)
+- [Jupyter notebook style guide](#jupyter-notebook-style-guide)
 
 ## Introduction
 
@@ -36,7 +37,7 @@ most recent release.
 
 ## Setting up a local development environment
 
-To set up a local development environment
+To set up a local development environment:
 
 1. Fork the repository on Github to your user area.
 2. Clone the repository to your local environment:
@@ -61,6 +62,9 @@ To set up a local development environment
    ```bash
    pip install --editable '.[test,plots]'
    ```
+
+   Install the `docs` extras as well, if you are modifying the documentation / example
+   notebooks.
 
 ### Code checks with precommit
 
@@ -103,9 +107,9 @@ rendered properly in the generated HTML files.
 
 To build the documentation locally:
 
-1. Navigate to the `docs` directory
-2. Run `make html`
-3. Open "_build/html/index.html" in your browser
+1. Navigate to the `docs` directory.
+2. Run `make html`.
+3. Open "_build/html/index.html" in your browser to inspect the documentation.
 
 ## Pull Requests (PRs)
 
@@ -128,3 +132,53 @@ please ensure:
 - Your feature branch is up-to-date with the master branch,
 - All [pre-commit hooks](https://pre-commit.com/#install) pass, and
 - Unit tests have been added (if your PR adds any new features or fixes a bug).
+
+## Jupyter notebook style guide
+
+If you are contributing changes to the Jupyter notebooks in the documentation, please
+adhere to the following style guidelines.
+
+### Links / Cross-references
+
+You are advised to include links in the notebooks as much as possible if it provides the
+reader with more background / context on the topic at hand.
+
+When doing so, never use URL links to refer to other SHAP notebooks, the SHAP
+documentation or other external Sphinx projects. Use [sphinx
+cross-references](https://docs.readthedocs.io/en/stable/guides/cross-referencing-with-sphinx.html)
+instead.
+
+We have `sphinx.ext.autosectionlabel` extension enabled, which autogenerates targets
+for every section, named `{relative/path/to/page}:{title-of-section}`.
+
+In order to inspect which targets are available for you to reference, you may use
+
+```bash
+python -m sphinx.ext.intersphinx docs/_build/html/objects.inv
+```
+
+### Watermark
+
+[`watermark`](https://github.com/rasbt/watermark) is a library which automatically
+prints the versions of Python and the packages used in the notebook. It should already
+be installed with the `docs` extras. Otherwise, run `pip install watermark`.
+
+Add the following cells at the end of the notebook:
+
+```markdown
+## Watermark
+```
+
+```
+%load_ext watermark
+%watermark --updated --date --python --iversions
+```
+
+The presence of the watermark is also enforced by `pre-commit`.
+
+
+
+TODO:
+- linting/formatting
+- remove metadata from notebook
+- cross references / links should not be hard links (verify this works)
