@@ -1,6 +1,12 @@
 repos:
+- repo: https://github.com/psf/black
+  rev: 23.3.0
+  hooks:
+    # - id: black
+    - id: black-jupyter
+
 - repo: https://github.com/charliermarsh/ruff-pre-commit
-  rev: v0.0.270
+  rev: v0.0.277
   hooks:
   - id: ruff
 
@@ -14,3 +20,24 @@ repos:
   - id: mixed-line-ending
   - id: trailing-whitespace
   - id: end-of-file-fixer
+
+- repo: https://github.com/nbQA-dev/nbQA
+  rev: 1.7.0
+  # Pinning hook dependencies' versions for reproducibility, but requires manual
+  # updating as a result. (cf. https://nbqa.readthedocs.io/en/latest/pre-commit.html)
+  hooks:
+  - id: nbqa-ruff
+    additional_dependencies: ["ruff==0.0.277"]
+
+- repo: local
+  hooks:
+    - id: watermark
+      name: Check notebooks have watermark
+      description: >-
+        Jupyter notebooks should have a cell for watermark (cf. Jupyter style guide from
+        CONTRIBUTING.md)
+      args: ["--negate", "--multiline"]
+      entry: "%load_ext watermark.*\
+        %watermark --updated --date --python --iversions"
+      language: pygrep
+      types: [jupyter]
