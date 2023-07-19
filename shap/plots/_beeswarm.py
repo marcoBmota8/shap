@@ -336,7 +336,7 @@ def beeswarm(shap_values, max_display=10, order=Explanation.abs.mean(0),
                 colored_feature = False
             else:
                 fvalues = np.array(fvalues, dtype=np.float64)  # make sure this can be numeric
-        except:
+        except Exception:
             colored_feature = False
         N = len(shaps)
         # hspacing = (np.max(shaps) - np.min(shaps)) / 200
@@ -397,7 +397,7 @@ def beeswarm(shap_values, max_display=10, order=Explanation.abs.mean(0),
         import matplotlib.cm as cm
         m = cm.ScalarMappable(cmap=color)
         m.set_array([0, 1])
-        cb = pl.colorbar(m, ticks=[0, 1], aspect=80)
+        cb = pl.colorbar(m, ax=pl.gca(), ticks=[0, 1], aspect=80)
         cb.set_ticklabels([labels['FEATURE_VALUE_LOW'], labels['FEATURE_VALUE_HIGH']])
         cb.set_label(color_bar_label, size=12, labelpad=0)
         cb.ax.tick_params(labelsize=11, length=0)
@@ -441,6 +441,7 @@ def summary_legacy(shap_values, features=None, feature_names=None, max_display=N
                  class_inds=None,
                  color_bar_label=labels["FEATURE_VALUE"],
                  cmap=colors.red_blue,
+                 show_values_in_legend=False,
                  # depreciated
                  auto_size_plot=None,
                  use_log_scale=False):
@@ -472,6 +473,10 @@ def summary_legacy(shap_values, features=None, feature_names=None, max_display=N
         many inches high. Passing a pair of floats will scale the plot by that
         number of inches. If None is passed then the size of the current figure will be left
         unchanged.
+
+    show_values_in_legend: bool
+        Flag to print the mean of the SHAP values in the multi-output bar plot. Set to False
+        by default.
     """
 
     # support passing an explanation object
@@ -505,7 +510,8 @@ def summary_legacy(shap_values, features=None, feature_names=None, max_display=N
         if plot_type == 'layered_violin':
             color = "coolwarm"
         elif multi_class:
-            color = lambda i: colors.red_blue_circle(i/len(shap_values))
+            def color(i):
+                return colors.red_blue_circle(i / len(shap_values))
         else:
             color = colors.blue_rgb
 
@@ -659,7 +665,7 @@ def summary_legacy(shap_values, features=None, feature_names=None, max_display=N
                     colored_feature = False
                 else:
                     values = np.array(values, dtype=np.float64)  # make sure this can be numeric
-            except:
+            except Exception:
                 colored_feature = False
             N = len(shaps)
             # hspacing = (np.max(shaps) - np.min(shaps)) / 200
@@ -879,11 +885,31 @@ def summary_legacy(shap_values, features=None, feature_names=None, max_display=N
             class_inds = np.argsort([-np.abs(shap_values[i]).mean() for i in range(len(shap_values))])
         elif class_inds == "original":
             class_inds = range(len(shap_values))
+
+        if show_values_in_legend:
+            # Get the smallest decimal place of the first significant digit
+            # to print on the legend. The legend will print ('n_decimal'+1)
+            # decimal places.
+            # Set to 1 if the smallest number is bigger than 1.
+            smallest_shap = np.min(np.abs(shap_values).mean((1, 2)))
+            if smallest_shap > 1:
+                n_decimals = 1
+            else:
+                n_decimals = int(-np.floor(
+                    np.log10(
+                        smallest_shap
+                    )
+                ))
+
         for i, ind in enumerate(class_inds):
             global_shap_values = np.abs(shap_values[ind]).mean(0)
+            if show_values_in_legend:
+                label = f'{class_names[ind]} ({np.round(np.mean(global_shap_values),(n_decimals+1))})'
+            else:
+                label = class_names[ind]
             pl.barh(
                 y_pos, global_shap_values[feature_inds], 0.7, left=left_pos, align='center',
-                color=color(i), label=class_names[ind]
+                color=color(i), label=label
             )
             left_pos += global_shap_values[feature_inds]
         pl.yticks(y_pos, fontsize=13)
@@ -896,7 +922,7 @@ def summary_legacy(shap_values, features=None, feature_names=None, max_display=N
         import matplotlib.cm as cm
         m = cm.ScalarMappable(cmap=cmap if plot_type != "layered_violin" else pl.get_cmap(color))
         m.set_array([0, 1])
-        cb = pl.colorbar(m, ticks=[0, 1], aspect=80)
+        cb = pl.colorbar(m, ax=pl.gca(), ticks=[0, 1], aspect=80)
         cb.set_ticklabels([labels['FEATURE_VALUE_LOW'], labels['FEATURE_VALUE_HIGH']])
         cb.set_label(color_bar_label, size=12, labelpad=0)
         cb.ax.tick_params(labelsize=11, length=0)

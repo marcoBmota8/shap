@@ -37,7 +37,8 @@ def kmeans(X, k, round_values=True):
     imp = SimpleImputer(missing_values=np.nan, strategy='mean')
     X = imp.fit_transform(X)
 
-    kmeans = KMeans(n_clusters=k, random_state=0).fit(X)
+    # Specify `n_init` for consistent behaviour between sklearn versions
+    kmeans = KMeans(n_clusters=k, random_state=0, n_init=10).fit(X)
 
     if round_values:
         for i in range(k):
@@ -121,7 +122,7 @@ def match_model_to_data(model, data):
             out_val = model.f(data.convert_to_df())
         else:
             out_val = model.f(data.data)
-    except:
+    except Exception:
         print("Provided model function fails when applied to the provided data set.")
         raise
 

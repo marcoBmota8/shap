@@ -586,7 +586,7 @@ class Tree(Explainer):
 
         try:
             TreeEnsemble(model)
-        except:
+        except Exception:
             return False
         return True
 
@@ -1016,7 +1016,7 @@ class TreeEnsemble:
             tree_info = self.original_model.dump_model()["tree_info"]
             try:
                 self.trees = [SingleTree(e, data=data, data_missing=data_missing) for e in tree_info]
-            except:
+            except Exception:
                 self.trees = None # we get here because the cext can't handle categorical splits yet
 
             self.objective = objective_name_map.get(model.params.get("objective", "regression"), None)
@@ -1029,7 +1029,7 @@ class TreeEnsemble:
             tree_info = self.original_model.dump_model()["tree_info"]
             try:
                 self.trees = [SingleTree(e, data=data, data_missing=data_missing) for e in tree_info]
-            except:
+            except Exception:
                 self.trees = None # we get here because the cext can't handle categorical splits yet
 
             self.objective = objective_name_map.get(model.params.get("objective", "regression"), None)
@@ -1042,7 +1042,7 @@ class TreeEnsemble:
             tree_info = self.original_model.dump_model()["tree_info"]
             try:
                 self.trees = [SingleTree(e, data=data, data_missing=data_missing) for e in tree_info]
-            except:
+            except Exception:
                 self.trees = None # we get here because the cext can't handle categorical splits yet
             self.objective = objective_name_map.get(model.objective, None)
             self.tree_output = tree_output_name_map.get(model.objective, None)
@@ -1056,7 +1056,7 @@ class TreeEnsemble:
             tree_info = self.original_model.dump_model()["tree_info"]
             try:
                 self.trees = [SingleTree(e, data=data, data_missing=data_missing) for e in tree_info]
-            except:
+            except Exception:
                 self.trees = None # we get here because the cext can't handle categorical splits yet
             # Note: for ranker, leaving tree_output and objective as None as they
             # are not implemented in native code yet
@@ -1069,7 +1069,7 @@ class TreeEnsemble:
             tree_info = self.original_model.dump_model()["tree_info"]
             try:
                 self.trees = [SingleTree(e, data=data, data_missing=data_missing) for e in tree_info]
-            except:
+            except Exception:
                 self.trees = None # we get here because the cext can't handle categorical splits yet
             self.objective = objective_name_map.get(model.objective, None)
             self.tree_output = tree_output_name_map.get(model.objective, None)
@@ -1089,7 +1089,7 @@ class TreeEnsemble:
             try:
                 cb_loader = CatBoostTreeModelLoader(model)
                 self.trees = cb_loader.get_trees(data=data, data_missing=data_missing)
-            except:
+            except Exception:
                 self.trees = None # we get here because the cext can't handle categorical splits yet
             self.tree_output = "log_odds"
             self.objective = "binary_crossentropy"
@@ -1285,9 +1285,48 @@ class TreeEnsemble:
 
 
 class SingleTree:
-    """ A single decision tree.
+    """A single decision tree.
 
     The primary point of this object is to parse many different tree types into a common format.
+
+    Attributes
+    ----------
+    children_left : numpy.array
+        A 1d array of length #nodes. The index ``i`` of this array contains the index of
+        the left-child of the ``i-th`` node in the tree. An index of -1 is used to
+        represent that the ``i-th`` node is a leaf/terminal node.
+
+    children_right : numpy.array
+        Same as ``children_left``, except it contains the index of the right child of
+        each ``i-th`` node in the tree.
+
+    children_default : numpy.array
+        A 1d numpy array of length #nodes. The index ``i`` of this array contains either
+        the index of the left-child / right-child of the ``i-th`` node in the tree,
+        depending on whether the default split (for handling missing values) is left /
+        right. An index of -1 is used to represent that the ``i-th`` node is a leaf
+        node.
+
+    features : numpy.array
+        A 1d numpy array of length #nodes. The value at the ``i-th`` position is the
+        index of the feature chosen for the split at node ``i``. Leaf nodes have no
+        splits, so is -1.
+
+    thresholds : numpy.array
+        A 1d numpy array of length #nodes. The value at the ``i-th`` position is the
+        threshold used for the split at node ``i``. Leaf nodes have no thresholds, so is
+        -1.
+
+    values : numpy.array
+        A 1d numpy array of length #nodes. The index ``i`` of this array contains the
+        raw predicted value that would be produced by node ``i`` if it were a leaf node.
+
+    node_sample_weight : numpy.array
+        A 1d numpy array of length #nodes. The index ``i`` contains the number of
+        records (usually from the training data) that falls into node ``i``.
+
+    max_depth : int
+        The max depth of the tree.
     """
     def __init__(self, tree, normalize=False, scaling=1.0, data=None, data_missing=None):
         assert_import("cext")
@@ -1378,52 +1417,73 @@ class SingleTree:
                 self.values = (self.values.T / self.values.sum(1)).T
             self.values = self.values * scaling
 
-        elif type(tree) == dict and 'tree_structure' in tree: # LightGBM model dump
-            start = tree['tree_structure']
-            num_parents = tree['num_leaves']-1
-            self.children_left = np.empty((2*num_parents+1), dtype=np.int32)
-            self.children_right = np.empty((2*num_parents+1), dtype=np.int32)
-            self.children_default = np.empty((2*num_parents+1), dtype=np.int32)
-            self.features = np.empty((2*num_parents+1), dtype=np.int32)
-            self.thresholds = np.empty((2*num_parents+1), dtype=np.float64)
-            self.values = [-2]*(2*num_parents+1)
-            self.node_sample_weight = np.empty((2*num_parents+1), dtype=np.float64)
+        # dictionary output from LightGBM `.dump_model()`
+        elif isinstance(tree, dict) and "tree_structure" in tree:
+            start = tree["tree_structure"]
+            num_parents = tree["num_leaves"] - 1
+            num_nodes = 2 * num_parents + 1
+            self.children_left = np.empty(num_nodes, dtype=np.int32)
+            self.children_right = np.empty(num_nodes, dtype=np.int32)
+            self.children_default = np.empty(num_nodes, dtype=np.int32)
+            self.features = np.empty(num_nodes, dtype=np.int32)
+            self.thresholds = np.empty(num_nodes, dtype=np.float64)
+            self.values = [-2 for _ in range(num_nodes)]
+            self.node_sample_weight = np.empty(num_nodes, dtype=np.float64)
+
+            # BFS traversal through the tree structure
             visited, queue = [], [start]
             while queue:
-                vertex = queue.pop(0)
-                if 'split_index' in vertex.keys():
-                    if vertex['split_index'] not in visited:
-                        if 'split_index' in vertex['left_child'].keys():
-                            self.children_left[vertex['split_index']] = vertex['left_child']['split_index']
-                        else:
-                            self.children_left[vertex['split_index']] = vertex['left_child']['leaf_index']+num_parents
-                        if 'split_index' in vertex['right_child'].keys():
-                            self.children_right[vertex['split_index']] = vertex['right_child']['split_index']
-                        else:
-                            self.children_right[vertex['split_index']] = vertex['right_child']['leaf_index']+num_parents
-                        if vertex['default_left']:
-                            self.children_default[vertex['split_index']] = self.children_left[vertex['split_index']]
-                        else:
-                            self.children_default[vertex['split_index']] = self.children_right[vertex['split_index']]
-                        self.features[vertex['split_index']] = vertex['split_feature']
-                        self.thresholds[vertex['split_index']] = vertex['threshold']
-                        self.values[vertex['split_index']] = [vertex['internal_value']]
-                        self.node_sample_weight[vertex['split_index']] = vertex['internal_count']
-                        visited.append(vertex['split_index'])
-                        queue.append(vertex['left_child'])
-                        queue.append(vertex['right_child'])
+                vertex = queue.pop(0)  # TODO(perf): benchmark this against deque.popleft()
+                is_branch_node = "split_index" in vertex
+                if is_branch_node:
+                    vsplit_idx: int = vertex["split_index"]
+                    if vsplit_idx in visited:
+                        continue
+
+                    left_child: dict = vertex["left_child"]
+                    right_child: dict = vertex["right_child"]
+                    left_is_branch_node = "split_index" in left_child
+                    if left_is_branch_node:
+                        self.children_left[vsplit_idx] = left_child["split_index"]
+                    else:
+                        self.children_left[vsplit_idx] = left_child["leaf_index"] + num_parents
+                    right_is_branch_node = "split_index" in right_child
+                    if right_is_branch_node:
+                        self.children_right[vsplit_idx] = right_child["split_index"]
+                    else:
+                        self.children_right[vsplit_idx] = right_child["leaf_index"] + num_parents
+                    if vertex["default_left"]:
+                        self.children_default[vsplit_idx] = self.children_left[vsplit_idx]
+                    else:
+                        self.children_default[vsplit_idx] = self.children_right[vsplit_idx]
+
+                    self.features[vsplit_idx] = vertex["split_feature"]
+                    self.thresholds[vsplit_idx] = vertex["threshold"]
+                    self.values[vsplit_idx] = [vertex["internal_value"]]
+                    self.node_sample_weight[vsplit_idx] = vertex["internal_count"]
+                    visited.append(vsplit_idx)
+                    queue.append(left_child)
+                    queue.append(right_child)
                 else:
-                    self.children_left[vertex['leaf_index']+num_parents] = -1
-                    self.children_right[vertex['leaf_index']+num_parents] = -1
-                    self.children_default[vertex['leaf_index']+num_parents] = -1
-                    self.features[vertex['leaf_index']+num_parents] = -1
-                    self.children_left[vertex['leaf_index']+num_parents] = -1
-                    self.children_right[vertex['leaf_index']+num_parents] = -1
-                    self.children_default[vertex['leaf_index']+num_parents] = -1
-                    self.features[vertex['leaf_index']+num_parents] = -1
-                    self.thresholds[vertex['leaf_index']+num_parents] = -1
-                    self.values[vertex['leaf_index']+num_parents] = [vertex['leaf_value']]
-                    self.node_sample_weight[vertex['leaf_index']+num_parents] = vertex['leaf_count']
+                    # NOTE: If "leaf_index" is not present as a key, it means we have a
+                    # stump tree. I.e., num_nodes=1.
+                    vleaf_idx: int = vertex.get("leaf_index", 0) + num_parents
+                    self.children_left[vleaf_idx] = -1
+                    self.children_right[vleaf_idx] = -1
+                    self.children_default[vleaf_idx] = -1
+                    self.features[vleaf_idx] = -1
+                    self.children_left[vleaf_idx] = -1
+                    self.children_right[vleaf_idx] = -1
+                    self.children_default[vleaf_idx] = -1
+                    self.features[vleaf_idx] = -1
+                    self.thresholds[vleaf_idx] = -1
+                    self.values[vleaf_idx] = [vertex["leaf_value"]]
+                    # FIXME: "leaf_count" currently doesn't exist if we have a stump tree.
+                    # We should be technically be assigning the number of samples used to
+                    # train the model as the weight here, but unfortunately this info is
+                    # currently unavailable in `tree`, so we set to 0 first.
+                    # cf. https://github.com/microsoft/LightGBM/issues/5962
+                    self.node_sample_weight[vleaf_idx] = vertex.get("leaf_count", 0)
             self.values = np.asarray(self.values)
             self.values = np.multiply(self.values, scaling)
 

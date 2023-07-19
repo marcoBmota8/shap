@@ -4,12 +4,18 @@ from transformers import AutoTokenizer
 import shap.benchmark as benchmark
 from shap.maskers import FixedComposite, Image, Impute, Independent, Partition, Text
 
-model = lambda x, y: x
+
+def model(x, y):
+    return x
+
 sort_order = 'positive'
 perturbation = 'keep'
-X = np.random.random((10,13))
 
-def test_init():
+def test_init(random_seed):
+
+    rs = np.random.RandomState(random_seed)
+    X = rs.random((10,13))
+
     tabular_masker = Independent(X)
     sequential_perturbation = benchmark.perturbation.SequentialPerturbation(model, tabular_masker, sort_order, perturbation)
     assert sequential_perturbation.data_type == "tabular"
