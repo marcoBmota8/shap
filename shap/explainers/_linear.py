@@ -48,13 +48,17 @@ class Linear(Explainer):
         actually used by the model, while the correlation option stays "true to the data" in the sense that
         it only considers how the model would behave when respecting the correlations in the input data.
         For sparse case only interventional option is supported.
+    
+    disable_completion_bar : bool (default: True) 
+        Controls whether to show a progress bar when computing expected values for each sample.
+        Only applies to models with observational feature perturbation.
 
     Examples
     --------
     See `Linear explainer examples <https://shap.readthedocs.io/en/latest/api_examples/explainers/Linear.html>`_
     """
 
-    def __init__(self, model, masker, link=links.identity, nsamples=1000, feature_perturbation=None, **kwargs):
+    def __init__(self, model, masker, link=links.identity, nsamples=1000, feature_perturbation=None, disable_completion_bar=True,  **kwargs):
         if 'feature_dependence' in kwargs:
             warnings.warn('The option feature_dependence has been renamed to feature_perturbation!')
             feature_perturbation = kwargs["feature_dependence"]
@@ -172,7 +176,7 @@ class Linear(Explainer):
             if e.min() < 1e-7:
                 self.cov = self.cov + np.eye(self.cov.shape[0]) * 1e-6
 
-            mean_transform, x_transform = self._estimate_transforms(nsamples)
+            mean_transform, x_transform = self._estimate_transforms(nsamples, disable_completion_bar = disable_completion_bar)
             self.mean_transformed = np.matmul(mean_transform, self.mean)
             self.x_transform = x_transform
         elif self.feature_perturbation == "interventional":
@@ -181,7 +185,7 @@ class Linear(Explainer):
         else:
             raise InvalidFeaturePerturbationError("Unknown type of feature_perturbation provided: " + self.feature_perturbation)
 
-    def _estimate_transforms(self, nsamples):
+    def _estimate_transforms(self, nsamples, disable_completion_bar):
         """ Uses block matrix inversion identities to quickly estimate transforms.
 
         After a bit of matrix math we can isolate a transform matrix (# features x # features)
@@ -196,7 +200,7 @@ class Linear(Explainer):
         mean_transform = np.zeros((M,M))
         x_transform = np.zeros((M,M))
         inds = np.arange(M, dtype=int)
-        for _ in tqdm(range(nsamples), "Estimating transforms"):
+        for _ in tqdm(range(nsamples), "Estimating transforms", disable = disable_completion_bar):
             np.random.shuffle(inds)
             cov_inv_SiSi = np.zeros((0,0))
             cov_Si = np.zeros((M,0))
