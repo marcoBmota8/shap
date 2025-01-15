@@ -10,7 +10,7 @@ from ._utils import convert_ordering
 
 def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Explanation.abs.mean(0),
             feature_order=None, max_display=10, cmap=colors.red_white_blue, show=True,
-            plot_width=8):
+            plot_width=8, limit_vals:tuple=(1,99)):
     """Create a heatmap plot of a set of SHAP values.
 
     This plot is designed to show the population substructure of a dataset using supervised
@@ -48,6 +48,13 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
 
     plot_width: int, default 8
         The width of the heatmap plot.
+        
+    limit_vals: tuple, default (1,99)
+        Percentiles outside which the colorbar saturates. 
+        Allows for tunning of the range of shap values we want 
+        to visualize in better constrats and highlight small differences.
+        Values beyond each of the percentiles get assigned the 
+        corresponding extreme on the colorbar.
 
     Examples
     --------
@@ -104,10 +111,10 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     ax = pl.gca()
 
     # plot the matrix of SHAP values as a heat map
-    vmin, vmax = np.nanpercentile(values.flatten(), [1, 99])
+    vmin, vmax = np.nanpercentile(values.flatten(), [limit_vals[0], limit_vals[1]])
     ax.imshow(
         values.T,
-        aspect=0.7 * values.shape[0] / values.shape[1],
+        aspect=0.75 * values.shape[0] / values.shape[1],
         interpolation="nearest",
         vmin=min(vmin,-vmax),
         vmax=max(-vmin,vmax),
@@ -180,3 +187,5 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
 
     if show:
         pl.show()
+
+    return ax
