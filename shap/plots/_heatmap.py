@@ -10,7 +10,7 @@ from ._utils import convert_ordering
 
 def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Explanation.abs.mean(0),
             feature_order=None, max_display=10, cmap=colors.red_white_blue, show=True,
-            plot_width=8, limit_vals:tuple=(1,99), aggregate_other_features:bool=True, fontsize:int=12):
+            plot_width=8, limit_vals:tuple=(1,99), aggregate_other_features:bool=True, fontsize:int=12, **kwargs):
     """Create a heatmap plot of a set of SHAP values.
 
     This plot is designed to show the population substructure of a dataset using supervised
@@ -157,7 +157,7 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     ax.yaxis.get_ticklines()[0].set_visible(False)
 
     ax.set_xlim(-0.5, values.shape[0] - 0.5)
-    ax.set_xlabel(xlabel, fontsize=fontsize)
+    ax.set_xlabel(xlabel, labelsize=fontsize)
 
     # plot the f(x) line chart above the heat map
     ax.axhline(-1.5, color="#aaaaaa", linestyle="--", linewidth=0.5)
