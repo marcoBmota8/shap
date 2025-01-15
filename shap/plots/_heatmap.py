@@ -10,7 +10,7 @@ from ._utils import convert_ordering
 
 def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Explanation.abs.mean(0),
             feature_order=None, max_display=10, cmap=colors.red_white_blue, show=True,
-            plot_width=8, limit_vals:tuple=(1,99)):
+            plot_width=8, limit_vals:tuple=(1,99), aggregate_other_features:bool=True, fontsize:int=12):
     """Create a heatmap plot of a set of SHAP values.
 
     This plot is designed to show the population substructure of a dataset using supervised
@@ -49,12 +49,19 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     plot_width: int, default 8
         The width of the heatmap plot.
         
-    limit_vals: tuple, default (1,99)
+    limit_vals: tuple, (Default: (1,99))
         Percentiles outside which the colorbar saturates. 
         Allows for tunning of the range of shap values we want 
         to visualize in better constrats and highlight small differences.
         Values beyond each of the percentiles get assigned the 
         corresponding extreme on the colorbar.
+    
+    aggregate_other_features: bool, (Default: True)
+        Whether or not to aggregate all features beyond `max_display` or
+        just display the top ones.
+        
+    fontsize: int, (Default:12)
+        Font size to use for all text and ticklabels in the plot.
 
     Examples
     --------
@@ -93,15 +100,24 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     # into a single feature
     if values.shape[1] > max_display:
         new_values = np.zeros((values.shape[0], max_display))
-        new_values[:, :-1] = values[:, :max_display-1]
-        new_values[:, -1] = values[:, max_display-1:].sum(1)
         new_feature_values = np.zeros(max_display)
-        new_feature_values[:-1] = feature_values[:max_display-1]
-        new_feature_values[-1] = feature_values[max_display-1:].sum()
-        feature_names = [
-            *feature_names[:max_display-1],
-            f"Sum of {values.shape[1] - max_display + 1} other features",
-        ]
+        # If we want to show the rest of the features in the last line of the plot or not
+        if aggregate_other_features:
+            new_values[:, :-1] = values[:, :max_display-1]
+            new_values[:, -1] = values[:, max_display-1:].sum(1)
+            new_feature_values[:-1] = feature_values[:max_display-1]
+            new_feature_values[-1] = feature_values[max_display-1:].sum()
+            feature_names = [
+                *feature_names[:max_display-1],
+                f"Sum of {values.shape[1] - max_display + 1} other features",
+            ]
+        else:
+            new_values = values[:, :max_display]
+            new_feature_values = feature_values[:max_display]
+            feature_names = [
+                *feature_names[:max_display]
+            ] 
+            
         values = new_values
         feature_values = new_feature_values
 
@@ -127,7 +143,7 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     ax.spines[["left", "right"]].set_visible(True)
     ax.spines[["left", "right"]].set_bounds(values.shape[1] - row_height, -row_height)
     ax.spines[["top", "bottom"]].set_visible(False)
-    ax.tick_params(axis="both", direction="out")
+    ax.tick_params(axis="both", direction="out", fontsize=fontsize)
 
     ax.set_ylim(values.shape[1] - row_height, -3)
     heatmap_yticks_pos = np.arange(values.shape[1])
@@ -135,13 +151,13 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     ax.yaxis.set_ticks(
         [-1.5, *heatmap_yticks_pos],
         [r"$f(x)$", *heatmap_yticks_labels],
-        fontsize=13,
+        fontsize=fontsize,
     )
     # remove the y-tick line for the f(x) label
     ax.yaxis.get_ticklines()[0].set_visible(False)
 
     ax.set_xlim(-0.5, values.shape[0] - 0.5)
-    ax.set_xlabel(xlabel)
+    ax.set_xlabel(xlabel, fontsize=fontsize)
 
     # plot the f(x) line chart above the heat map
     ax.axhline(-1.5, color="#aaaaaa", linestyle="--", linewidth=0.5)
@@ -149,7 +165,7 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     ax.plot(
         -fx / np.abs(fx).max() - 1.5,
         color="#000000",
-        linewidth=1,
+        linewidth=1
     )
 
     # plot the bar plot on the right spine of the heat map
@@ -177,8 +193,8 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
         fraction=0.01,
         pad=0.10,  # padding between the cb and the main axes
     )
-    cb.set_label(labels["VALUE"], size=12, labelpad=-10)
-    cb.ax.tick_params(labelsize=11, length=0)
+    cb.set_label(labels["VALUE"], size=fontsize, labelpad=-10)
+    cb.ax.tick_params(labelsize=fontsize, length=0)
     cb.set_alpha(1)
     cb.outline.set_visible(False)
     # bbox = cb.ax.get_window_extent().transformed(pl.gcf().dpi_scale_trans.inverted())
