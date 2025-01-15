@@ -143,7 +143,7 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     ax.spines[["left", "right"]].set_visible(True)
     ax.spines[["left", "right"]].set_bounds(values.shape[1] - row_height, -row_height)
     ax.spines[["top", "bottom"]].set_visible(False)
-    ax.tick_params(axis="both", direction="out", fontsize=fontsize)
+    ax.tick_params(axis="both", direction="out", labelsize=fontsize)
 
     ax.set_ylim(values.shape[1] - row_height, -3)
     heatmap_yticks_pos = np.arange(values.shape[1])
@@ -157,7 +157,7 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     ax.yaxis.get_ticklines()[0].set_visible(False)
 
     ax.set_xlim(-0.5, values.shape[0] - 0.5)
-    ax.set_xlabel(xlabel, labelsize=fontsize)
+    ax.set_xlabel(xlabel, fontsize=fontsize)
 
     # plot the f(x) line chart above the heat map
     ax.axhline(-1.5, color="#aaaaaa", linestyle="--", linewidth=0.5)
@@ -193,7 +193,7 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
         fraction=0.01,
         pad=0.10,  # padding between the cb and the main axes
     )
-    cb.set_label(labels["VALUE"], size=fontsize, labelpad=-10)
+    cb.set_label("Shapley Value", size=fontsize, labelpad=-10)
     cb.ax.tick_params(labelsize=fontsize, length=0)
     cb.set_alpha(1)
     cb.outline.set_visible(False)
