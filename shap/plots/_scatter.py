@@ -13,7 +13,7 @@ from ._labels import labels
 
 # TODO: Make the color bar a one-sided beeswarm plot so we can see the density along the color axis
 def scatter(shap_values, color="#1E88E5", hist=True, axis_color="#333333", cmap=colors.red_blue,
-            dot_size=16, x_jitter="auto", alpha=1, title=None, xmin=None, xmax=None, ymin=None, ymax=None,
+            dot_size=16, x_jitter="auto", alpha=1, title=None, xmin=None, xmax=None, ymin=None, ymax=None, vmin=None, vmax=None,
             overlay=None, ax=None, ylabel="SHAP value", show=True):
     """Create a SHAP dependence scatter plot, colored by an interaction feature.
 
@@ -64,6 +64,20 @@ def scatter(shap_values, color="#1E88E5", hist=True, axis_color="#333333", cmap=
     xmax : float or string
         Represents the upper bound of the plot's x-axis. It can be a string of the format
         "percentile(float)" to denote that percentile of the feature's value used on the x-axis.
+    
+    ymin : float
+        Represents the lower bound of the plot's y-axis.
+    
+    ymax : float
+        Represents the upper bound of the plot's y-axis.
+        
+    vmin : float
+        Represents the lower bound of the color scale. If not specified, it is set to the
+        minimum value of the interaction feature.
+        
+    vmax : float
+        Represents the upper bound of the color scale. If not specified, it is set to the
+        maximum value of the interaction feature.
 
     ax : matplotlib Axes object
         Optionally specify an existing matplotlib ``Axes`` object, into which the plot will be placed.
@@ -296,7 +310,7 @@ def scatter(shap_values, color="#1E88E5", hist=True, axis_color="#333333", cmap=
             categorical_interaction = True
 
         # discritize colors for categorical features
-        if categorical_interaction and clow != chigh:
+        if categorical_interaction and clow != chigh and vmin is None and vmax is None:
             clow = np.nanmin(cv.astype(float))
             chigh = np.nanmax(cv.astype(float))
             bounds = np.linspace(clow, chigh, min(int(chigh - clow + 2), cmap.N-1))
@@ -329,11 +343,14 @@ def scatter(shap_values, color="#1E88E5", hist=True, axis_color="#333333", cmap=
         cvals_imp[np.isnan(cvals)] = (clow + chigh) / 2.0
         cvals[cvals_imp > chigh] = chigh
         cvals[cvals_imp < clow] = clow
-        if color_norm is None:
-            vmin = clow
-            vmax = chigh
+        if color_norm is None and vmin is None and vmax is None:
+            vmin = clow 
+            vmax = chigh 
+        elif color_norm is None and vmin is not None and vmax is not None:
+            pass
         else:
             vmin = vmax = None
+            
         ax.axhline(0, color="#888888", lw=0.5, dashes=(1, 5), zorder=-1)
         p = ax.scatter(
             xv[xv_notnan], s[xv_notnan], s=dot_size, linewidth=0, c=cvals[xv_notnan],
