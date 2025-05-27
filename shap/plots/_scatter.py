@@ -295,8 +295,8 @@ def scatter(shap_values, color="#1E88E5", hist=True, axis_color="#333333", cmap=
         interaction_feature_values = encode_array_if_needed(features[:, interaction_index])
         cv = interaction_feature_values
         cd = display_features[:, interaction_index]
-        clow = np.nanpercentile(cv.astype(float), 5)
-        chigh = np.nanpercentile(cv.astype(float), 95)
+        clow = np.nanpercentile(cv.astype(float), 5) if vmin is None else vmin # Allows to pass user-defined colorbar bounds
+        chigh = np.nanpercentile(cv.astype(float), 95) if vmax is None else vmax # Allows to pass user-defined colorbar bounds
         if clow == chigh:
             clow = np.nanmin(cv.astype(float))
             chigh = np.nanmax(cv.astype(float))
@@ -310,7 +310,7 @@ def scatter(shap_values, color="#1E88E5", hist=True, axis_color="#333333", cmap=
             categorical_interaction = True
 
         # discritize colors for categorical features
-        if categorical_interaction and clow != chigh and vmin is None and vmax is None:
+        if categorical_interaction and clow != chigh:
             clow = np.nanmin(cv.astype(float))
             chigh = np.nanmax(cv.astype(float))
             bounds = np.linspace(clow, chigh, min(int(chigh - clow + 2), cmap.N-1))
@@ -343,14 +343,11 @@ def scatter(shap_values, color="#1E88E5", hist=True, axis_color="#333333", cmap=
         cvals_imp[np.isnan(cvals)] = (clow + chigh) / 2.0
         cvals[cvals_imp > chigh] = chigh
         cvals[cvals_imp < clow] = clow
-        if color_norm is None and vmin is None and vmax is None:
-            vmin = clow 
-            vmax = chigh 
-        elif color_norm is None and vmin is not None and vmax is not None:
-            pass
+        if color_norm is None:
+            vmin = clow
+            vmax = chigh
         else:
             vmin = vmax = None
-            
         ax.axhline(0, color="#888888", lw=0.5, dashes=(1, 5), zorder=-1)
         p = ax.scatter(
             xv[xv_notnan], s[xv_notnan], s=dot_size, linewidth=0, c=cvals[xv_notnan],
