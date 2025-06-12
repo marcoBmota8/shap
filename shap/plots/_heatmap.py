@@ -150,9 +150,9 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     heatmap_yticks_labels = feature_names
     ax.yaxis.set_ticks(
         [-1.5, *heatmap_yticks_pos],
-        [r"$f(x)$", *heatmap_yticks_labels],
-        fontsize=fontsize,
+        [r"$f(x)$", *heatmap_yticks_labels]
     )
+    
     # remove the y-tick line for the f(x) label
     ax.yaxis.get_ticklines()[0].set_visible(False)
 
