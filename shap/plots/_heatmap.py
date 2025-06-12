@@ -8,9 +8,21 @@ from ._labels import labels
 from ._utils import convert_ordering
 
 
-def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Explanation.abs.mean(0),
-            feature_order=None, max_display=10, cmap=colors.red_white_blue, show=True,
-            plot_width=8, limit_vals:tuple=(1,99), aggregate_other_features:bool=True, fontsize:int=12, **kwargs):
+def heatmap(
+    shap_values,
+    instance_order=Explanation.hclust(),
+    feature_values=Explanation.abs.mean(0),
+    feature_order=None,
+    max_display=10,
+    cmap=colors.red_white_blue,
+    show=True,
+    plot_width=8,
+    limit_vals:tuple=(1,99),
+    aggregate_other_features:bool=True,
+    fontsize:int=12,
+    limit_type:str='percentile',
+    **kwargs
+):
     """Create a heatmap plot of a set of SHAP values.
 
     This plot is designed to show the population substructure of a dataset using supervised
@@ -50,11 +62,12 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
         The width of the heatmap plot.
         
     limit_vals: tuple, (Default: (1,99))
-        Percentiles outside which the colorbar saturates. 
-        Allows for tunning of the range of shap values we want 
-        to visualize in better constrats and highlight small differences.
-        Values beyond each of the percentiles get assigned the 
-        corresponding extreme on the colorbar.
+        If limit_type is 'percentile', percentiles outside which the colorbar saturates. 
+        If limit_type is 'raw', the raw values to use as colorbar limits.
+    
+    limit_type: str, (Default: 'percentile')
+        If 'percentile', use percentiles of the data for colorbar limits.
+        If 'raw', use the values in limit_vals as the colorbar limits.
     
     aggregate_other_features: bool, (Default: True)
         Whether or not to aggregate all features beyond `max_display` or
@@ -84,13 +97,6 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
         raise Exception("Unsupported feature_order: %s!" % str(feature_order))
     xlabel = "Instances"
     instance_order = convert_ordering(instance_order, shap_values)
-    # if issubclass(type(instance_order), OpChain):
-    #     #xlabel += " " + instance_order.summary_string("SHAP values")
-    #     instance_order = instance_order.apply(Explanation(values))
-    # elif not hasattr(instance_order, "__len__"):
-    #     raise Exception("Unsupported instance_order: %s!" % str(instance_order))
-    # else:
-    #     instance_order_ops = None
 
     feature_names = np.array(shap_values.feature_names)[feature_order]
     values = shap_values.values[instance_order][:,feature_order]
@@ -127,7 +133,13 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     ax = pl.gca()
 
     # plot the matrix of SHAP values as a heat map
-    vmin, vmax = np.nanpercentile(values.flatten(), [limit_vals[0], limit_vals[1]])
+    if limit_type == 'percentile':
+        vmin, vmax = np.nanpercentile(values.flatten(), [limit_vals[0], limit_vals[1]])
+    elif limit_type == 'raw':
+        vmin, vmax = limit_vals
+    else:
+        raise ValueError("limit_type must be either 'percentile' or 'raw'")
+
     ax.imshow(
         values.T,
         aspect=0.75 * values.shape[0] / values.shape[1],
@@ -148,10 +160,8 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     ax.set_ylim(values.shape[1] - row_height, -3)
     heatmap_yticks_pos = np.arange(values.shape[1])
     heatmap_yticks_labels = feature_names
-    ax.yaxis.set_ticks(
-        [-1.5, *heatmap_yticks_pos],
-        [r"$f(x)$", *heatmap_yticks_labels]
-    )
+    ax.yaxis.set_ticks([-1.5, *heatmap_yticks_pos])
+    ax.yaxis.set_ticklabels([r"$f(x)$", *heatmap_yticks_labels], fontsize=fontsize)
     
     # remove the y-tick line for the f(x) label
     ax.yaxis.get_ticklines()[0].set_visible(False)
@@ -176,7 +186,6 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
         align="center",
         color="#000000",
         left=values.shape[0] * 1.0 - 0.5,
-        # color=[colors.red_rgb if shap_values[feature_inds[i]] > 0 else colors.blue_rgb for i in range(len(y_pos))]
     )
     for b in bar_container:
         b.set_clip_on(False)
@@ -197,9 +206,6 @@ def heatmap(shap_values, instance_order=Explanation.hclust(), feature_values=Exp
     cb.ax.tick_params(labelsize=fontsize, length=0)
     cb.set_alpha(1)
     cb.outline.set_visible(False)
-    # bbox = cb.ax.get_window_extent().transformed(pl.gcf().dpi_scale_trans.inverted())
-    # cb.ax.set_aspect((bbox.height - 0.9) * 15)
-    # cb.draw_all()
 
     if show:
         pl.show()
