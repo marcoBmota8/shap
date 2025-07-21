@@ -755,7 +755,6 @@ class TreeEnsemble:
                 "sklearn.ensemble.RandomForestClassifier",
                 "sklearn.ensemble.forest.RandomForestClassifier",
                 "notsorf.models.ForcedFeatureRandomForest"  # Custom model of the notsorf package (https://github.com/marcoBmota8/notsorf/blob/cc31a1243ad12dbf573d01e0c1dfea215cef21e8/notsorf/models.py#L10)
-
             ],
         ):
             assert hasattr(model, "estimators_"), "Model has no `estimators_`! Have you called `model.fit`?"
