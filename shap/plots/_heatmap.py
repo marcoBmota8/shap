@@ -15,7 +15,7 @@ def heatmap(
     feature_order=None,
     max_display=10,
     cmap=colors.red_white_blue,
-    show=True,
+    show=False,
     plot_width=8,
     limit_vals:tuple=(1,99),
     aggregate_other_features:bool=True,
@@ -55,7 +55,7 @@ def heatmap(
 
     show : bool
         Whether ``matplotlib.pyplot.show()`` is called before returning.
-        Setting this to ``False`` allows the plot
+        Setting this to ``False`` (default) allows the plot
         to be customized further after it has been created.
 
     plot_width: int, default 8
